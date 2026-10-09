@@ -199,11 +199,20 @@ pub fn terminal_has_foreground_process(state: State<'_, Terminals>, id: String) 
     let map = state.0.lock().map_err(|e| e.to_string())?;
     let s = map.get(&id).ok_or("no such terminal")?;
     // Unix: tcgetpgrp on the master fd (via portable-pty) vs the shell's pid
-    // (the shell is a session leader, so its pgid equals its pid). Not available on Windows.
-    Ok(match (s.master.process_group_leader(), s.shell_pid) {
-        (Some(fg), Some(shell)) if fg > 0 => fg as u32 != shell,
-        _ => false,
-    })
+    // (the shell is a session leader, so its pgid equals its pid).
+    #[cfg(unix)]
+    {
+        Ok(match (s.master.process_group_leader(), s.shell_pid) {
+            (Some(fg), Some(shell)) if fg > 0 => fg as u32 != shell,
+            _ => false,
+        })
+    }
+    // Windows has no foreground process group: never ask for confirmation.
+    #[cfg(not(unix))]
+    {
+        let _ = s;
+        Ok(false)
+    }
 }
 
 #[cfg(test)]
