@@ -130,10 +130,13 @@ export function create(id: string, cwd?: string, shell?: string, restoreScrollba
     if (e.type === "keydown" && e.ctrlKey && e.shiftKey && !e.metaKey) {
       const k = e.key.toLowerCase();
       if (k === "c" && term.hasSelection()) {
+        e.preventDefault();
         void navigator.clipboard.writeText(term.getSelection());
         return false;
       }
       if (k === "v") {
+        // Without preventDefault the webview also fires its native paste event, pasting twice.
+        e.preventDefault();
         void navigator.clipboard.readText().then((t) => term.paste(t));
         return false;
       }
