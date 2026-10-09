@@ -42,3 +42,21 @@ type PinnedTerminal = { id: string; name: string; cwd?: string; renamed?: boolea
 ```
 
 Only pinned terminals are saved. A Group is saved if it has any pinned terminal, or is empty.
+
+## v2 additions
+
+Commands (Rust side):
+
+| Command | Args | Returns |
+|---|---|---|
+| `list_shells` | none | `{ id: string, name: string, path: string }[]` (detected shells; Windows: PowerShell, pwsh, cmd, WSL distros, Git Bash when present) |
+| `scrollback_save` | `{ id: string, data: string }` | `void` (stored in the app-data dir, one file per terminal id; id must be `[A-Za-z0-9-]+`) |
+| `scrollback_load` | `{ id }` | `string \| null` |
+| `scrollback_delete` | `{ id }` | `void` |
+
+Behaviour changes: shells started by `terminal_create` are made to emit OSC 7 (cwd) on every platform;
+`terminal_has_foreground_process` works on Windows (child process of the shell present).
+
+Frontend store API shared between agents (`src/store.ts`):
+`toggleSidebarMode()`, `toggleSplit()`, `splitIds: string[]` (terminals shown side by side), `activity: Record<id, "idle"|"output"|"running">`.
+Settings live in `src/settings.ts` (`useSettings`).
