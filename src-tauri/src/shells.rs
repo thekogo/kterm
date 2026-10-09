@@ -367,10 +367,12 @@ mod tests {
     fn plan_bash_zsh() {
         let d = Path::new("/c/k");
         let l = plan(&parse_spec_with("/bin/bash", |_| false), Some(d), None, false, None);
-        assert_eq!(l.args, ["--rcfile", "/c/k/bash/kterm.bashrc"]);
+        // Path::join uses the host separator, so compare with separators normalised.
+        let norm = |s: &str| s.replace('\\', "/");
+        assert_eq!(l.args.iter().map(|a| norm(a)).collect::<Vec<_>>(), ["--rcfile", "/c/k/bash/kterm.bashrc"]);
         let l = plan(&parse_spec_with("/bin/zsh", |_| false), Some(d), Some("/my/z"), false, None);
         assert!(l.env.contains(&("KTERM_ZDOTDIR".into(), "/my/z".into())));
-        assert!(l.env.contains(&("ZDOTDIR".into(), "/c/k/zsh".into())));
+        assert!(l.env.iter().any(|(k, v)| k == "ZDOTDIR" && norm(v) == "/c/k/zsh"));
         let l = plan(&parse_spec_with("/bin/zsh", |_| false), Some(d), None, false, None);
         assert!(l.env.contains(&("KTERM_ZDOTDIR".into(), "".into())));
         let l = plan(&parse_spec_with("/bin/fish", |_| false), Some(d), None, false, None);
