@@ -57,6 +57,22 @@ export function zoom(action: "in" | "out" | "reset") {
   setFontSize(action === "reset" ? DEFAULT_FONT_SIZE : fontSize + (action === "in" ? 1 : -1));
 }
 
+export const DEFAULT_FONT_FAMILY = 'ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace';
+const familyOf = (f: string) => f.trim() || DEFAULT_FONT_FAMILY;
+let fontFamily = familyOf(useSettings.getState().fontFamily);
+
+/** Apply the font family to every Terminal live (and to Terminals created later). */
+export function setFontFamily(family: string) {
+  fontFamily = familyOf(family);
+  for (const e of entries.values()) {
+    e.term.options.fontFamily = fontFamily;
+    if (e.opened) doFit(e);
+  }
+}
+useSettings.subscribe((s, prev) => {
+  if (s.fontFamily !== prev.fontFamily) setFontFamily(s.fontFamily);
+});
+
 let theme: ITheme = themeById(useSettings.getState().theme).xterm;
 
 /** Apply an xterm theme live to every Terminal (and to Terminals created later). */
@@ -90,7 +106,7 @@ function loadRenderer(term: Terminal) {
 export function create(id: string, cwd?: string, shell?: string, restoreScrollback = false) {
   const term = new Terminal({
     scrollback: 10000,
-    fontFamily: 'ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace',
+    fontFamily,
     fontSize,
     cursorBlink: true,
     allowProposedApi: true,

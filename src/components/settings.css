@@ -7,6 +7,7 @@
 .settings section:last-child { border-bottom: 0; }
 .settings h3 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); }
 .settings .seg { display: flex; gap: 6px; align-items: center; }
+.settings input:not([type=checkbox]) { padding: 5px 10px; border-radius: 6px; background: var(--bg-btn); color: var(--text); border: 1px solid transparent; font: inherit; width: 260px; max-width: 100%; }
 .settings .seg button, .settings select { padding: 5px 12px; border-radius: 6px; background: var(--bg-btn); color: var(--text); border: 1px solid transparent; font: inherit; }
 .settings .seg button.on { border-color: var(--accent-border); background: var(--bg-active); }
 .settings .val { min-width: 48px; text-align: center; }

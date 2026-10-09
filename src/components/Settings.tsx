@@ -48,6 +48,34 @@ function FontSection() {
   );
 }
 
+const FONT_PRESETS = ["JetBrains Mono", "Fira Code", "Cascadia Code", "Source Code Pro", "Menlo", "Consolas", "monospace"];
+
+function FontFamilySection() {
+  const fontFamily = useSettings((s) => s.fontFamily);
+  const set = useSettings((s) => s.set);
+  return (
+    <section>
+      <h3>Font family</h3>
+      <input
+        list="font-presets"
+        value={fontFamily}
+        placeholder="System default"
+        spellCheck={false}
+        onChange={(e) => set({ fontFamily: e.target.value })}
+      />
+      <datalist id="font-presets">
+        {FONT_PRESETS.map((f) => (
+          <option key={f} value={`"${f}", monospace`} />
+        ))}
+      </datalist>
+      <button className="link" disabled={!fontFamily} onClick={() => set({ fontFamily: "" })}>
+        Reset
+      </button>
+      <p className="note">Any installed font, as a CSS font-family list. Falls back to monospace if missing.</p>
+    </section>
+  );
+}
+
 function ShortcutRow({ id, label }: { id: AnyAction; label: string }) {
   const overrides = useSettings((s) => s.shortcuts);
   const set = useSettings((s) => s.set);
@@ -170,6 +198,7 @@ export function Settings() {
         <div className="settings-body">
           <ThemeSection />
           <FontSection />
+          <FontFamilySection />
           <ShellSection />
           <BehaviourSection />
           <ShortcutsSection />

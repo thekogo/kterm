@@ -11,10 +11,12 @@ export type Settings = {
   restoreScrollback: boolean;
   /** "pinned" keeps the sidebar visible; "autohide" slides it out until the mouse hits the left edge. */
   sidebarMode: "pinned" | "autohide";
+  /** Terminal font family (CSS font-family list). Empty = built-in default stack. */
+  fontFamily: string;
 };
 
 const KEY = "kterm.settings";
-const defaults: Settings = { theme: "dark", shortcuts: {}, restoreScrollback: false, sidebarMode: "pinned" };
+const defaults: Settings = { theme: "dark", shortcuts: {}, restoreScrollback: false, sidebarMode: "pinned", fontFamily: "" };
 
 function load(): Settings {
   try {
