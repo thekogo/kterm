@@ -3,12 +3,16 @@ import * as ipc from "./ipc";
 import * as session from "./session";
 import { useStore } from "./store";
 import { startPersistence } from "./persistence";
-import { matchShortcut, matchZoom } from "./shortcuts";
-import { Sidebar } from "./components/Sidebar";
+import { matchAction } from "./shortcuts";
+import { SidebarHost } from "./components/SidebarHost";
 import { MainArea } from "./components/MainArea";
 import { Switcher } from "./components/Switcher";
 import { ConfirmDialog } from "./components/ConfirmDialog";
+import { Settings, toggleSettings } from "./components/Settings";
+import { useSettings } from "./settings";
+import { themeById } from "./themes";
 import "./App.css";
+import "./theme.css";
 
 let initStarted = false;
 
@@ -20,7 +24,10 @@ export default function App() {
 
     void ipc
       .listenAll({
-        output: ({ id, data }) => session.write(id, data),
+        output: ({ id, data }) => {
+          session.write(id, data);
+          useStore.getState().onOutput(id);
+        },
         exit: ({ id, code }) => useStore.getState().onExit(id, code),
         cwd: ({ id, cwd }) => useStore.getState().onCwd(id, cwd),
       })
@@ -35,19 +42,21 @@ export default function App() {
     }
 
     const onKey = (e: KeyboardEvent) => {
-      const z = matchZoom(e);
-      if (z) {
-        e.preventDefault();
-        e.stopPropagation();
-        session.zoom(z);
-        return;
-      }
-      const a = matchShortcut(e);
+      const a = matchAction(e);
       if (!a) return;
       e.preventDefault();
       e.stopPropagation();
-      const s = useStore.getState();
-      if (a === "find") {
+      const s = useStore.getState() as ReturnType<typeof useStore.getState> & {
+        toggleSidebarMode?: () => void;
+        toggleSplit?: () => void;
+      };
+      if (a === "zoomIn") session.zoom("in");
+      else if (a === "zoomOut") session.zoom("out");
+      else if (a === "zoomReset") session.zoom("reset");
+      else if (a === "toggleSidebar") s.toggleSidebarMode?.();
+      else if (a === "toggleSplit") s.toggleSplit?.();
+      else if (a === "settings") toggleSettings();
+      else if (a === "find") {
         if (s.activeId) s.setSearch(true);
       } else if (a === "switcher") s.setSwitcher(!s.switcherOpen);
       else if (a === "new") s.addTerminal(s.activeId ? (s.terminals[s.activeId]?.groupId ?? null) : null);
@@ -63,12 +72,19 @@ export default function App() {
     };
   }, []);
 
+  const theme = useSettings((s) => s.theme);
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    session.applyTheme(themeById(theme).xterm);
+  }, [theme]);
+
   return (
     <div className="app">
-      <Sidebar />
+      <SidebarHost />
       <MainArea />
       <Switcher />
       <ConfirmDialog />
+      <Settings />
     </div>
   );
 }

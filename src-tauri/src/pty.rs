@@ -1,3 +1,4 @@
+use crate::shells;
 use crate::osc::{OscEvent, OscScanner};
 use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
 use serde::Serialize;
@@ -77,7 +78,19 @@ pub fn terminal_create(
         .openpty(size(cols, rows))
         .map_err(|e| e.to_string())?;
     let shell = shell.filter(|s| !s.is_empty()).unwrap_or_else(default_shell_path);
-    let mut cmd = CommandBuilder::new(&shell);
+    let spec = shells::parse_spec(&shell);
+    let launch = shells::plan(
+        &spec,
+        shells::integration_dir(),
+        std::env::var("ZDOTDIR").ok().filter(|z| !z.is_empty()).as_deref(),
+        cfg!(windows),
+        std::env::var("PROMPT").ok().as_deref(),
+    );
+    let mut cmd = CommandBuilder::new(&launch.program);
+    cmd.args(&launch.args);
+    for (k, v) in &launch.env {
+        cmd.env(k, v);
+    }
     cmd.env("TERM", "xterm-256color");
     cmd.env("COLORTERM", "truecolor");
     let dir = cwd
@@ -207,11 +220,45 @@ pub fn terminal_has_foreground_process(state: State<'_, Terminals>, id: String) 
             _ => false,
         })
     }
-    // Windows has no foreground process group: never ask for confirmation.
-    #[cfg(not(unix))]
+    // Windows has no foreground process group: the shell counts as busy when it has a live child.
+    #[cfg(windows)]
+    {
+        Ok(s.shell_pid.map(has_live_child).unwrap_or(false))
+    }
+    #[cfg(not(any(unix, windows)))]
     {
         let _ = s;
         Ok(false)
+    }
+}
+
+/// True if any process currently lists `parent` as its parent (toolhelp snapshot).
+#[cfg(windows)]
+fn has_live_child(parent: u32) -> bool {
+    use windows_sys::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
+    use windows_sys::Win32::System::Diagnostics::ToolHelp::{
+        CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
+    };
+    // SAFETY: plain Win32 calls; the entry is zero-initialised with dwSize set, and the
+    // snapshot handle is closed before returning.
+    unsafe {
+        let snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+        if snap == INVALID_HANDLE_VALUE {
+            return false;
+        }
+        let mut entry: PROCESSENTRY32W = std::mem::zeroed();
+        entry.dwSize = std::mem::size_of::<PROCESSENTRY32W>() as u32;
+        let mut found = false;
+        let mut ok = Process32FirstW(snap, &mut entry);
+        while ok != 0 {
+            if entry.th32ParentProcessID == parent && entry.th32ProcessID != parent {
+                found = true;
+                break;
+            }
+            ok = Process32NextW(snap, &mut entry);
+        }
+        CloseHandle(snap);
+        found
     }
 }
 

@@ -1,6 +1,8 @@
 mod layout;
 mod osc;
 mod pty;
+mod scrollback;
+mod shells;
 
 use tauri::{AppHandle, Manager};
 
@@ -19,6 +21,28 @@ fn layout_load(app: AppHandle) -> Result<Option<layout::Layout>, String> {
 #[tauri::command]
 fn layout_save(app: AppHandle, layout: layout::Layout) -> Result<(), String> {
     layout::save_to(&layout_path(&app)?, &layout)
+}
+
+fn scrollback_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+    app.path()
+        .app_data_dir()
+        .map(|d| d.join("scrollback"))
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn scrollback_save(app: AppHandle, id: String, data: String) -> Result<(), String> {
+    scrollback::save(&scrollback_dir(&app)?, &id, &data)
+}
+
+#[tauri::command]
+fn scrollback_load(app: AppHandle, id: String) -> Result<Option<String>, String> {
+    scrollback::load(&scrollback_dir(&app)?, &id)
+}
+
+#[tauri::command]
+fn scrollback_delete(app: AppHandle, id: String) -> Result<(), String> {
+    scrollback::delete(&scrollback_dir(&app)?, &id)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -42,6 +66,10 @@ pub fn run() {
             pty::default_shell,
             layout_load,
             layout_save,
+            shells::list_shells,
+            scrollback_save,
+            scrollback_load,
+            scrollback_delete,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,0 +1,22 @@
+/* Theme variables. The default (dark) lives on :root; others override via [data-theme]. */
+:root {
+  color-scheme: dark;
+  --bg: #14151a; --bg-side: #1b1d24; --bg-raised: #252833; --bg-active: #323751; --bg-hover: #3a3f55;
+  --bg-modal: #1f212b; --bg-btn: #2d3040; --border: #262932; --border-modal: #343848;
+  --text: #d6d9e0; --text-strong: #fff; --text-soft: #aeb4c6; --text-muted: #8b91a3; --text-muted2: #9aa0b3;
+  --text-dim: #6b7184; --text-icon: #7d8398; --accent: #8fa4ff; --accent-border: #5a6bd8; --danger: #b24a4a;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #fafafc; --bg-side: #eceef3; --bg-raised: #dfe2ea; --bg-active: #cdd5f3; --bg-hover: #d3d7e2;
+  --bg-modal: #ffffff; --bg-btn: #e3e6ee; --border: #d5d8e0; --border-modal: #c6cad6;
+  --text: #2b2e3a; --text-strong: #000; --text-soft: #4a4f60; --text-muted: #6b7184; --text-muted2: #585d70;
+  --text-dim: #8b91a3; --text-icon: #6b7184; --accent: #3f56d9; --accent-border: #3f56d9; --danger: #c0392b;
+}
+:root[data-theme="nord"] {
+  color-scheme: dark;
+  --bg: #2e3440; --bg-side: #272c36; --bg-raised: #3b4252; --bg-active: #434c5e; --bg-hover: #4c566a;
+  --bg-modal: #323947; --bg-btn: #3b4252; --border: #3b4252; --border-modal: #4c566a;
+  --text: #d8dee9; --text-strong: #eceff4; --text-soft: #c2c9d6; --text-muted: #9aa5b8; --text-muted2: #a9b3c5;
+  --text-dim: #7b869a; --text-icon: #8f9bb0; --accent: #88c0d0; --accent-border: #81a1c1; --danger: #bf616a;
+}

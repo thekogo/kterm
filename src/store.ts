@@ -2,6 +2,7 @@ import { create } from "zustand";
 import * as ipc from "./ipc";
 import * as session from "./session";
 import { basename } from "./path";
+import { useSettings } from "./settings";
 
 export type Term = {
   id: string;
@@ -13,6 +14,8 @@ export type Term = {
   exited: boolean;
 };
 export type Group = { id: string; name: string; cwd?: string; shell?: string; collapsed: boolean; terminalIds: string[] };
+export type Activity = "idle" | "output" | "running";
+export const MAX_SPLIT = 4;
 export type Item = { kind: "terminal" | "group"; id: string };
 
 type State = {
@@ -26,7 +29,15 @@ type State = {
   switcherOpen: boolean;
   searchOpen: boolean;
   confirm: { message: string; resolve: (ok: boolean) => void } | null;
+  /** Split view on/off and the terminals shown side by side (max MAX_SPLIT). The active terminal is always shown. */
+  splitOn: boolean;
+  splitIds: string[];
+  activity: Record<string, Activity>;
 
+  toggleSplit: () => void;
+  toggleSplitMember: (id: string) => void;
+  onOutput: (id: string) => void;
+  toggleSidebarMode: () => void;
   init: (layout: ipc.Layout | null) => void;
   addTerminal: (groupId: string | null) => string;
   addGroup: () => string;
@@ -52,6 +63,13 @@ const uid = () => crypto.randomUUID();
 
 function flatOrder(s: Pick<State, "items" | "groups">): string[] {
   return s.items.flatMap((it) => (it.kind === "terminal" ? [it.id] : (s.groups[it.id]?.terminalIds ?? [])));
+}
+
+/** Terminals currently shown in the main area, left to right. */
+export function visiblePanes(s: Pick<State, "splitOn" | "splitIds" | "activeId">): string[] {
+  if (!s.activeId) return [];
+  if (!s.splitOn) return [s.activeId];
+  return s.splitIds.includes(s.activeId) ? s.splitIds : [s.activeId, ...s.splitIds].slice(0, MAX_SPLIT);
 }
 
 export const useStore = create<State>((set, get) => {
@@ -84,7 +102,11 @@ export const useStore = create<State>((set, get) => {
     }
     const activeId =
       s.activeId === id ? (order[idx + 1] ?? order[idx - 1] ?? null) : s.activeId;
-    set({ terminals, groups, items, activeId });
+    if (t.pinned) void ipc.scrollbackDelete(id).catch(() => {});
+    const activity = { ...s.activity };
+    delete activity[id];
+    const splitIds = s.splitIds.filter((x) => x !== id);
+    set({ terminals, groups, items, activeId, activity, splitIds, splitOn: s.splitOn && (splitIds.length > 1 || (splitIds.length === 1 && splitIds[0] !== activeId)) });
   };
 
   return {
@@ -96,6 +118,9 @@ export const useStore = create<State>((set, get) => {
     switcherOpen: false,
     searchOpen: false,
     confirm: null,
+    splitOn: false,
+    splitIds: [],
+    activity: {},
 
     init: (layout) => {
       const terminals: Record<string, Term> = {};
@@ -105,7 +130,7 @@ export const useStore = create<State>((set, get) => {
         const cwd = pt.cwd ?? g?.cwd;
         const userRenamed = pt.renamed ?? false;
         terminals[pt.id] = newTerm(pt.id, g?.id ?? null, { name: pt.name, cwd, userRenamed, pinned: true });
-        session.create(pt.id, cwd, g?.shell ?? layout?.shell);
+        session.create(pt.id, cwd, g?.shell ?? layout?.shell, useSettings.getState().restoreScrollback);
       };
       for (const it of layout?.items ?? []) {
         if (it.kind === "terminal") {
@@ -180,7 +205,46 @@ export const useStore = create<State>((set, get) => {
       set({ terminals, groups, items });
     },
 
-    setActive: (id) => set({ activeId: id }),
+    setActive: (id) => {
+      const s = get();
+      const a = id && s.activity[id] && s.activity[id] !== "idle" ? { ...s.activity, [id]: "idle" as const } : s.activity;
+      set({ activeId: id, activity: a });
+    },
+
+    toggleSplit: () => {
+      const s = get();
+      if (s.splitOn) return set({ splitOn: false });
+      if (!s.activeId) return;
+      const order = flatOrder(s);
+      const i = order.indexOf(s.activeId);
+      const other = order[i + 1] ?? order[i - 1];
+      const keep = s.splitIds.filter((x) => s.terminals[x]);
+      const ids = keep.includes(s.activeId) ? keep : [s.activeId, ...keep].slice(0, MAX_SPLIT);
+      if (ids.length < 2 && other) ids.push(other);
+      set({ splitOn: true, splitIds: ids });
+    },
+
+    toggleSplitMember: (id) => {
+      const s = get();
+      if (!s.terminals[id]) return;
+      if (s.splitIds.includes(id)) {
+        if (id !== s.activeId || s.splitIds.length > 1) set({ splitIds: s.splitIds.filter((x) => x !== id) });
+      } else if (s.splitIds.length < MAX_SPLIT) {
+        set({ splitIds: [...s.splitIds, id], splitOn: true });
+      }
+    },
+
+    onOutput: (id) => {
+      const s = get();
+      if (id === s.activeId || s.activity[id] === "output" || !s.terminals[id]) return;
+      if (s.splitOn && s.splitIds.includes(id)) return; // already visible
+      set({ activity: { ...s.activity, [id]: "output" } });
+    },
+
+    toggleSidebarMode: () => {
+      const { sidebarMode, set: setSetting } = useSettings.getState();
+      setSetting({ sidebarMode: sidebarMode === "pinned" ? "autohide" : "pinned" });
+    },
 
     renameTerminal: (id, name) => {
       const t = get().terminals[id];
@@ -205,7 +269,9 @@ export const useStore = create<State>((set, get) => {
 
     togglePin: (id) => {
       const t = get().terminals[id];
-      if (t) set({ terminals: { ...get().terminals, [id]: { ...t, pinned: !t.pinned } } });
+      if (!t) return;
+      if (t.pinned) void ipc.scrollbackDelete(id).catch(() => {});
+      set({ terminals: { ...get().terminals, [id]: { ...t, pinned: !t.pinned } } });
     },
 
     toggleCollapse: (id) => {

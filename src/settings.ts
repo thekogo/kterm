@@ -1,7 +1,8 @@
 import { create } from "zustand";
 
 /** App-wide user settings, persisted in localStorage (per-viewer conveniences). Owned by the settings agent. */
-export type ThemeId = "dark" | "light";
+import type { ThemeId } from "./themes";
+export type { ThemeId };
 export type Settings = {
   theme: ThemeId;
   /** Persisted action -> key combo overrides. Missing = default. Format: "ctrl+shift+k", "meta+k". */

@@ -12,7 +12,8 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { useStore } from "../store";
 import { GroupItem } from "./GroupItem";
 import { TerminalRow } from "./TerminalRow";
-import { newHint, switcherHint } from "../shortcuts";
+import { useHint } from "../shortcuts";
+import { openSettings } from "./Settings";
 
 const collision: CollisionDetection = (args) => {
   const { terminals, groups } = useStore.getState();
@@ -46,6 +47,9 @@ function onDragEnd({ active, over }: DragEndEvent) {
 export function Sidebar() {
   const items = useStore((s) => s.items);
   const { addTerminal, addGroup, setSwitcher } = useStore.getState();
+  const switcherHint = useHint("switcher");
+  const newHint = useHint("new");
+  const settingsHint = useHint("settings");
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   return (
@@ -69,6 +73,11 @@ export function Sidebar() {
           + New terminal
         </button>
         <button onClick={() => addGroup()}>+ Group</button>
+        <button className="icon" title="Toggle split view" onClick={() => useStore.getState().toggleSplit()}>▥</button>
+        <button className="icon" title="Toggle auto-hide sidebar" onClick={() => useStore.getState().toggleSidebarMode()}>⇤</button>
+        <button className="gear" onClick={openSettings} title={`Settings (${settingsHint})`} aria-label="Settings">
+          ⚙
+        </button>
       </div>
     </aside>
   );

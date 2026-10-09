@@ -1,13 +1,26 @@
-import { Terminal, type ITerminalAddon } from "@xterm/xterm";
+import { Terminal, type ITerminalAddon, type ITheme } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { CanvasAddon } from "@xterm/addon-canvas";
 import "@xterm/xterm/css/xterm.css";
 import * as ipc from "./ipc";
 import { SearchAddon } from "@xterm/addon-search";
+import { SerializeAddon } from "@xterm/addon-serialize";
 import { matchShortcut, matchZoom } from "./shortcuts";
+import { themeById } from "./themes";
+import { useSettings } from "./settings";
 
-type Entry = { term: Terminal; fit: FitAddon; search: SearchAddon; opened: boolean };
+type Entry = {
+  term: Terminal;
+  fit: FitAddon;
+  search: SearchAddon;
+  serialize: SerializeAddon;
+  opened: boolean;
+  /** Output arriving while restored scrollback is still loading is buffered here. */
+  hold: string[] | null;
+  /** Output received since the last scrollback save. */
+  dirty: boolean;
+};
 const entries = new Map<string, Entry>();
 
 export const DEFAULT_FONT_SIZE = 13;
@@ -44,12 +57,13 @@ export function zoom(action: "in" | "out" | "reset") {
   setFontSize(action === "reset" ? DEFAULT_FONT_SIZE : fontSize + (action === "in" ? 1 : -1));
 }
 
-const theme = {
-  background: "#14151a",
-  foreground: "#d6d9e0",
-  cursor: "#d6d9e0",
-  selectionBackground: "#3a4160",
-};
+let theme: ITheme = themeById(useSettings.getState().theme).xterm;
+
+/** Apply an xterm theme live to every Terminal (and to Terminals created later). */
+export function applyTheme(t: ITheme) {
+  theme = t;
+  for (const e of entries.values()) e.term.options.theme = t;
+}
 
 function loadCanvas(term: Terminal) {
   try {
@@ -73,7 +87,7 @@ function loadRenderer(term: Terminal) {
 }
 
 /** Create the xterm instance and the Rust PTY. The xterm exists before output can arrive. */
-export function create(id: string, cwd?: string, shell?: string) {
+export function create(id: string, cwd?: string, shell?: string, restoreScrollback = false) {
   const term = new Terminal({
     scrollback: 10000,
     fontFamily: 'ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace',
@@ -86,6 +100,8 @@ export function create(id: string, cwd?: string, shell?: string) {
   term.loadAddon(fit);
   const search = new SearchAddon();
   term.loadAddon(search);
+  const serializeAddon = new SerializeAddon();
+  term.loadAddon(serializeAddon);
 
   const ready = ipc
     .terminalCreate({ id, cwd, shell, cols: term.cols, rows: term.rows })
@@ -109,7 +125,19 @@ export function create(id: string, cwd?: string, shell?: string) {
     return true;
   });
 
-  entries.set(id, { term, fit, search, opened: false });
+  const entry: Entry = { term, fit, search, serialize: serializeAddon, opened: false, hold: restoreScrollback ? [] : null, dirty: false };
+  entries.set(id, entry);
+  if (restoreScrollback) {
+    void ipc
+      .scrollbackLoad(id)
+      .catch(() => null)
+      .then((text) => {
+        if (text) restore(id, text);
+        const buf = entry.hold ?? [];
+        entry.hold = null;
+        buf.forEach((d) => term.write(d));
+      });
+  }
 }
 
 function doFit(e: Entry) {
@@ -139,7 +167,30 @@ export function attach(id: string, el: HTMLElement): () => void {
   };
 }
 
-export const write = (id: string, data: string) => entries.get(id)?.term.write(data);
+export function write(id: string, data: string) {
+  const e = entries.get(id);
+  if (!e) return;
+  e.dirty = true;
+  if (e.hold) e.hold.push(data);
+  else e.term.write(data);
+}
+
+/** Serialized scrollback + screen (ANSI text), capped to the last `rows` lines of scrollback. */
+export const serialize = (id: string, rows = 5000): string | null => {
+  const e = entries.get(id);
+  return e && !e.hold ? e.serialize.serialize({ scrollback: rows }) : null;
+};
+/** Write previously saved text into the terminal followed by a dim separator. */
+export function restore(id: string, text: string) {
+  entries.get(id)?.term.write(text + "\x1b[0m\r\n\x1b[2m\u2500\u2500\u2500\u2500 restored scrollback \u2500\u2500\u2500\u2500\x1b[0m\r\n");
+}
+/** True once if the terminal produced output since the last call. */
+export function takeDirty(id: string): boolean {
+  const e = entries.get(id);
+  if (!e || !e.dirty) return false;
+  e.dirty = false;
+  return true;
+}
 export const notifyExit = (id: string, code: number | null) =>
   entries.get(id)?.term.write(`\r\n\x1b[2m[process exited${code == null ? "" : ` with code ${code}`}]\x1b[0m\r\n`);
 const searchDecorations = {

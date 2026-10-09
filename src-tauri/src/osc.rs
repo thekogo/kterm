@@ -78,11 +78,23 @@ impl OscScanner {
                         out.push(OscEvent::Cwd(p));
                     }
                 }
+                "9" => {
+                    if let Some(p) = rest.strip_prefix("9;").and_then(parse_osc9_9) {
+                        out.push(OscEvent::Cwd(p));
+                    }
+                }
                 "0" | "2" => out.push(OscEvent::Title(rest.to_string())),
                 _ => {}
             }
         }
     }
+}
+
+/// Parses the path of ConEmu's `OSC 9;9;<path>` (optionally quoted); backslashes become `/`
+/// so the result matches what OSC 7 produces on Windows.
+pub fn parse_osc9_9(path: &str) -> Option<String> {
+    let p = path.trim().trim_matches('"');
+    (!p.is_empty()).then(|| p.replace('\\', "/"))
 }
 
 /// Parses `file://host/path` (percent-encoded) into a filesystem path.
@@ -142,6 +154,16 @@ mod tests {
             ev,
             vec![OscEvent::Cwd("/home/x".into()), OscEvent::Title("my title".into())]
         );
+    }
+
+    #[test]
+    fn osc9_9_cwd() {
+        assert_eq!(parse_osc9_9(r"C:\Users\me"), Some("C:/Users/me".into()));
+        assert_eq!(parse_osc9_9(r#""C:\a b""#), Some("C:/a b".into()));
+        assert_eq!(parse_osc9_9(""), None);
+        let mut s = OscScanner::default();
+        let ev = s.feed(b"\x1b]9;9;C:\\Users\\me\x1b\\\x1b]9;4;1;50\x07");
+        assert_eq!(ev, vec![OscEvent::Cwd("C:/Users/me".into())]);
     }
 
     #[test]
