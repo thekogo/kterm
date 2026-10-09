@@ -13,10 +13,14 @@ export type Settings = {
   sidebarMode: "pinned" | "autohide";
   /** Terminal font family (CSS font-family list). Empty = built-in default stack. */
   fontFamily: string;
+  /** Inner padding of every terminal, in px. */
+  padding: Padding;
 };
+export type Padding = { top: number; right: number; bottom: number; left: number };
+export const DEFAULT_PADDING: Padding = { top: 8, right: 0, bottom: 12, left: 10 };
 
 const KEY = "kterm.settings";
-const defaults: Settings = { theme: "dark", shortcuts: {}, restoreScrollback: false, sidebarMode: "pinned", fontFamily: "" };
+const defaults: Settings = { theme: "dark", shortcuts: {}, restoreScrollback: false, sidebarMode: "pinned", fontFamily: "", padding: DEFAULT_PADDING };
 
 function load(): Settings {
   try {

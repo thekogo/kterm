@@ -8,7 +8,7 @@ import { SearchAddon } from "@xterm/addon-search";
 import { SerializeAddon } from "@xterm/addon-serialize";
 import { matchShortcut, matchZoom } from "./shortcuts";
 import { themeById } from "./themes";
-import { useSettings } from "./settings";
+import { useSettings, type Padding } from "./settings";
 
 type Entry = {
   term: Terminal;
@@ -69,15 +69,25 @@ export function setFontFamily(family: string) {
     if (e.opened) doFit(e);
   }
 }
+
+/** Apply the terminal padding via a CSS variable; the ResizeObserver refits, doFit covers hidden hosts. */
+function applyPadding(p: Padding) {
+  document.documentElement.style.setProperty("--term-pad", `${p.top}px ${p.right}px ${p.bottom}px ${p.left}px`);
+  for (const e of entries.values()) if (e.opened) doFit(e);
+}
+applyPadding(useSettings.getState().padding);
 useSettings.subscribe((s, prev) => {
   if (s.fontFamily !== prev.fontFamily) setFontFamily(s.fontFamily);
+  if (s.padding !== prev.padding) applyPadding(s.padding);
 });
 
 let theme: ITheme = themeById(useSettings.getState().theme).xterm;
+document.documentElement.style.setProperty("--term-bg", theme.background ?? "");
 
 /** Apply an xterm theme live to every Terminal (and to Terminals created later). */
 export function applyTheme(t: ITheme) {
   theme = t;
+  document.documentElement.style.setProperty("--term-bg", t.background ?? "");
   for (const e of entries.values()) e.term.options.theme = t;
 }
 

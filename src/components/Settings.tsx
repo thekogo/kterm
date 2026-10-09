@@ -3,7 +3,7 @@ import { create } from "zustand";
 import * as ipc from "../ipc";
 import * as session from "../session";
 import { useStore } from "../store";
-import { useSettings } from "../settings";
+import { useSettings, DEFAULT_PADDING } from "../settings";
 import { THEMES } from "../themes";
 import { ACTIONS, binding, eventCombo, formatCombo, setCapturing, type AnyAction } from "../shortcuts";
 import "./settings.css";
@@ -72,6 +72,33 @@ function FontFamilySection() {
         Reset
       </button>
       <p className="note">Any installed font, as a CSS font-family list. Falls back to monospace if missing.</p>
+    </section>
+  );
+}
+
+function PaddingSection() {
+  const padding = useSettings((s) => s.padding);
+  const set = useSettings((s) => s.set);
+  const sides = ["top", "right", "bottom", "left"] as const;
+  return (
+    <section>
+      <h3>Terminal padding</h3>
+      <div className="seg">
+        {sides.map((k) => (
+          <label key={k}>
+            {k}{" "}
+            <input
+              type="number"
+              min={0}
+              max={64}
+              style={{ width: 52 }}
+              value={padding[k]}
+              onChange={(e) => set({ padding: { ...padding, [k]: Math.max(0, Math.min(64, Number(e.target.value) || 0)) } })}
+            />
+          </label>
+        ))}
+        <button onClick={() => set({ padding: DEFAULT_PADDING })}>Reset</button>
+      </div>
     </section>
   );
 }
@@ -199,6 +226,7 @@ export function Settings() {
           <ThemeSection />
           <FontSection />
           <FontFamilySection />
+          <PaddingSection />
           <ShellSection />
           <BehaviourSection />
           <ShortcutsSection />
