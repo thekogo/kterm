@@ -1,6 +1,7 @@
 import { useShallow } from "zustand/react/shallow";
 import { useStore } from "../store";
 import { TerminalView } from "./TerminalView";
+import { SearchBar } from "./SearchBar";
 import { newHint } from "../shortcuts";
 
 export function MainArea() {
@@ -11,6 +12,7 @@ export function MainArea() {
       {ids.map((id) => (
         <TerminalView key={id} id={id} />
       ))}
+      {activeId && <SearchBar key={activeId} id={activeId} />}
       {!activeId && (
         <div className="empty">
           <button onClick={() => useStore.getState().addTerminal(null)}>New terminal</button>

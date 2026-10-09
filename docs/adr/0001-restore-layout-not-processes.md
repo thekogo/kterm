@@ -4,4 +4,4 @@ On restart, kterm restores pinned Terminals by layout and last working directory
 
 ## Considered Options
 
-- **Background daemon that owns PTYs and reattaches:** rejected for v1 because of the cross-platform complexity. It can be added later without changing the stored layout format.
+- **Background daemon that owns PTYs and reattaches:** rejected for v1 because of the cross-platform complexity, and later dropped from the roadmap by the owner. The app asks for confirmation before closing a Terminal or quitting while a process is running instead.

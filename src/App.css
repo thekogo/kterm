@@ -46,3 +46,9 @@ kbd { font: inherit; font-size: 11px; opacity: .7; }
 .actions { display: flex; justify-content: flex-end; gap: 8px; }
 .actions button { padding: 6px 14px; border-radius: 8px; background: #2d3040; }
 .actions .danger { background: #b24a4a; color: #fff; }
+
+.searchbar { position: absolute; top: 8px; right: 16px; z-index: 5; display: flex; align-items: center; gap: 2px; padding: 4px; background: #1f212b; border: 1px solid #343848; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+.searchbar input { width: 200px; padding: 4px 8px; font: inherit; color: #fff; background: #14151a; border: 1px solid #343848; border-radius: 5px; outline: none; }
+.searchbar input:focus { border-color: #5a6bd8; }
+.searchbar .icon { width: 26px; height: 24px; visibility: visible; }
+.searchbar .icon.on { color: #8fa4ff; background: #323751; }

@@ -24,6 +24,7 @@ type State = {
   shell?: string;
   lastCwd?: string;
   switcherOpen: boolean;
+  searchOpen: boolean;
   confirm: { message: string; resolve: (ok: boolean) => void } | null;
 
   init: (layout: ipc.Layout | null) => void;
@@ -42,6 +43,7 @@ type State = {
   moveTerminal: (id: string, groupId: string | null, overTerminalId?: string) => void;
   moveGroup: (id: string, overItemId: string) => void;
   setSwitcher: (open: boolean) => void;
+  setSearch: (open: boolean) => void;
   ask: (message: string) => Promise<boolean>;
   resolveConfirm: (ok: boolean) => void;
 };
@@ -92,6 +94,7 @@ export const useStore = create<State>((set, get) => {
     activeId: null,
     loaded: false,
     switcherOpen: false,
+    searchOpen: false,
     confirm: null,
 
     init: (layout) => {
@@ -270,6 +273,7 @@ export const useStore = create<State>((set, get) => {
     },
 
     setSwitcher: (open) => set({ switcherOpen: open }),
+    setSearch: (open) => set({ searchOpen: open }),
     ask: (message) => new Promise<boolean>((resolve) => set({ confirm: { message, resolve } })),
     resolveConfirm: (ok) => {
       get().confirm?.resolve(ok);

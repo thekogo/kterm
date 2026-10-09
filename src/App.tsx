@@ -3,7 +3,7 @@ import * as ipc from "./ipc";
 import * as session from "./session";
 import { useStore } from "./store";
 import { startPersistence } from "./persistence";
-import { matchShortcut } from "./shortcuts";
+import { matchShortcut, matchZoom } from "./shortcuts";
 import { Sidebar } from "./components/Sidebar";
 import { MainArea } from "./components/MainArea";
 import { Switcher } from "./components/Switcher";
@@ -35,12 +35,21 @@ export default function App() {
     }
 
     const onKey = (e: KeyboardEvent) => {
+      const z = matchZoom(e);
+      if (z) {
+        e.preventDefault();
+        e.stopPropagation();
+        session.zoom(z);
+        return;
+      }
       const a = matchShortcut(e);
       if (!a) return;
       e.preventDefault();
       e.stopPropagation();
       const s = useStore.getState();
-      if (a === "switcher") s.setSwitcher(!s.switcherOpen);
+      if (a === "find") {
+        if (s.activeId) s.setSearch(true);
+      } else if (a === "switcher") s.setSwitcher(!s.switcherOpen);
       else if (a === "new") s.addTerminal(s.activeId ? (s.terminals[s.activeId]?.groupId ?? null) : null);
       else if (s.activeId) void s.closeTerminal(s.activeId);
     };
