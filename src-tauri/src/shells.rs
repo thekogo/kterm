@@ -242,11 +242,13 @@ pub fn apply_wsl(l: &mut Launch, cwd: Option<&str>, wslenv: Option<&str>) -> boo
     let prev = wslenv.filter(|w| !w.is_empty()).map(|w| format!("{w}:")).unwrap_or_default();
     l.env.push(("WSLENV".into(), format!("{prev}PROMPT_COMMAND/u")));
     match cwd {
-        Some(c) if is_linux_path(c) && !l.args.iter().any(|a| a == "--cd") => {
-            l.args.splice(0..0, ["--cd".to_string(), c.to_string()]);
+        _ if l.args.iter().any(|a| a == "--cd" || a == "--cd=") => false,
+        // A Windows (or missing) cwd would otherwise land in /mnt/c/...; start in the Linux home.
+        c => {
+            let dir = c.filter(|c| is_linux_path(c)).unwrap_or("~");
+            l.args.splice(0..0, ["--cd".to_string(), dir.to_string()]);
             true
         }
-        _ => false,
     }
 }
 
@@ -399,8 +401,8 @@ mod tests {
         assert_eq!(l.args, ["--cd", "/home/me/proj", "-d", "Ubuntu"]);
         assert!(l.env.contains(&("WSLENV".into(), "A/p:PROMPT_COMMAND/u".into())));
         let mut l = plan(&parse_spec_with("wsl.exe", |_| false), None, None, true, None);
-        assert!(!apply_wsl(&mut l, Some("C:/Users/me"), None));
-        assert!(l.args.is_empty());
+        assert!(apply_wsl(&mut l, Some("C:/Users/me"), None));
+        assert_eq!(l.args, ["--cd", "~"]);
         let mut l = plan(&parse_spec_with("/bin/bash", |_| false), None, None, false, None);
         assert!(!apply_wsl(&mut l, Some("/tmp"), None));
     }
