@@ -48,11 +48,14 @@ function FontSection() {
   );
 }
 
-const FONT_PRESETS = ["JetBrains Mono", "Fira Code", "Cascadia Code", "Source Code Pro", "Menlo", "Consolas", "monospace"];
 
 function FontFamilySection() {
   const fontFamily = useSettings((s) => s.fontFamily);
   const set = useSettings((s) => s.set);
+  const [fonts, setFonts] = useState<string[]>([]);
+  useEffect(() => {
+    ipc.listFonts().then(setFonts).catch(() => {});
+  }, []);
   return (
     <section>
       <h3>Font family</h3>
@@ -64,7 +67,7 @@ function FontFamilySection() {
         onChange={(e) => set({ fontFamily: e.target.value })}
       />
       <datalist id="font-presets">
-        {FONT_PRESETS.map((f) => (
+        {["monospace", ...fonts].map((f) => (
           <option key={f} value={`"${f}", monospace`} />
         ))}
       </datalist>

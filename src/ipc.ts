@@ -19,6 +19,7 @@ export const layoutSave = (layout: Layout) => invoke<void>("layout_save", { layo
 export const defaultShell = () => invoke<string>("default_shell");
 export type ShellInfo = { id: string; name: string; path: string };
 export const listShells = () => invoke<ShellInfo[]>("list_shells");
+export const listFonts = () => invoke<string[]>("list_fonts");
 export const scrollbackSave = (id: string, data: string) => invoke<void>("scrollback_save", { id, data });
 export const scrollbackLoad = (id: string) => invoke<string | null>("scrollback_load", { id });
 export const scrollbackDelete = (id: string) => invoke<void>("scrollback_delete", { id });

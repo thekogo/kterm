@@ -45,6 +45,15 @@ fn scrollback_delete(app: AppHandle, id: String) -> Result<(), String> {
     scrollback::delete(&scrollback_dir(&app)?, &id)
 }
 
+/// Installed font family names, sorted.
+#[tauri::command]
+fn list_fonts() -> Vec<String> {
+    let mut fams = font_kit::source::SystemSource::new().all_families().unwrap_or_default();
+    fams.sort_by_key(|f| f.to_lowercase());
+    fams.dedup();
+    fams
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -67,6 +76,7 @@ pub fn run() {
             layout_load,
             layout_save,
             shells::list_shells,
+            list_fonts,
             scrollback_save,
             scrollback_load,
             scrollback_delete,
