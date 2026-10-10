@@ -15,7 +15,7 @@ export function TerminalView({ id, slot }: { id: string; slot: { index: number; 
     <div
       ref={ref}
       className={`term${slot ? " shown" : ""}${active ? " active" : ""}${split ? " split" : ""}${split && slot.index === 0 ? " first" : ""}`}
-      style={split ? { left: `${(slot.index / slot.count) * 100}%`, width: `${100 / slot.count}%` } : undefined}
+      style={slot ? { left: `${(slot.index / slot.count) * 100}%`, width: `${100 / slot.count}%` } : undefined}
       onMouseDownCapture={() => {
         if (!active) useStore.getState().setActive(id);
       }}

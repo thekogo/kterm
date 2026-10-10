@@ -2,22 +2,24 @@ import { useState } from "react";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useStore } from "../store";
 import { InlineEdit } from "./InlineEdit";
-import { TerminalRow } from "./TerminalRow";
+import { useDropHint } from "./RowList";
+import { RowList } from "./RowList";
 
 export function GroupItem({ id }: { id: string }) {
   const g = useStore((s) => s.groups[id]);
   const { renameGroup, setGroupCwd, toggleCollapse, addTerminal, deleteGroup } = useStore.getState();
+  const dropMode = useDropHint((h) => (h.id === id ? h.mode : null));
   const [editing, setEditing] = useState<"name" | "cwd" | null>(null);
-  const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id });
+  const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, isDragging } = useSortable({ id });
   if (!g) return null;
 
   return (
     <div
       ref={setNodeRef}
-      className="group"
+      className={`group${dropMode ? ` drop-${dropMode}` : ""}`}
       style={{
-        transform: transform ? `translate3d(${transform.x}px,${transform.y}px,0)` : undefined,
-        transition,
+        // Only the dragged row follows the pointer; the others stay put and a drop indicator shows the target.
+        transform: isDragging && transform ? `translate3d(${transform.x}px,${transform.y}px,0)` : undefined,
         opacity: isDragging ? 0.5 : 1,
       }}
     >
@@ -56,9 +58,7 @@ export function GroupItem({ id }: { id: string }) {
       {!g.collapsed && (
         <div className="group-body">
           <SortableContext items={g.terminalIds} strategy={verticalListSortingStrategy}>
-            {g.terminalIds.map((t) => (
-              <TerminalRow key={t} id={t} />
-            ))}
+            <RowList scope={id} ids={g.terminalIds} />
           </SortableContext>
         </div>
       )}

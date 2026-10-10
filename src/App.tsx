@@ -1,9 +1,10 @@
 import { useEffect } from "react";
 import * as ipc from "./ipc";
 import * as session from "./session";
-import { useStore } from "./store";
+import { useStore, flatOrder } from "./store";
 import { startPersistence } from "./persistence";
 import { matchAction } from "./shortcuts";
+import { Titlebar, hasCustomTitlebar } from "./components/Titlebar";
 import { SidebarHost } from "./components/SidebarHost";
 import { MainArea } from "./components/MainArea";
 import { Switcher } from "./components/Switcher";
@@ -60,7 +61,10 @@ export default function App() {
         if (s.activeId) s.setSearch(true);
       } else if (a === "switcher") s.setSwitcher(!s.switcherOpen);
       else if (a === "new") s.addTerminal(s.activeId ? (s.terminals[s.activeId]?.groupId ?? null) : null);
-      else if (s.activeId) void s.closeTerminal(s.activeId);
+      else if (a.startsWith("goto")) {
+        const id = flatOrder(s)[Number(a.slice(4)) - 1];
+        if (id) s.setActive(id);
+      } else if (s.activeId) void s.closeTerminal(s.activeId);
     };
     window.addEventListener("keydown", onKey, true);
 
@@ -79,12 +83,15 @@ export default function App() {
   }, [theme]);
 
   return (
-    <div className="app">
-      <SidebarHost />
-      <MainArea />
-      <Switcher />
-      <ConfirmDialog />
-      <Settings />
+    <div className="shell">
+      {hasCustomTitlebar && <Titlebar />}
+      <div className="app">
+        <SidebarHost />
+        <MainArea />
+        <Switcher />
+        <ConfirmDialog />
+        <Settings />
+      </div>
     </div>
   );
 }

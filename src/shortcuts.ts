@@ -2,7 +2,8 @@ import { useSettings } from "./settings";
 
 export const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
 export type ShortcutAction =
-  | "switcher" | "new" | "close" | "find" | "toggleSidebar" | "toggleSplit" | "settings";
+  | "switcher" | "new" | "close" | "find" | "toggleSidebar" | "toggleSplit" | "settings"
+  | "goto1" | "goto2" | "goto3" | "goto4" | "goto5" | "goto6" | "goto7" | "goto8" | "goto9";
 export type ZoomAction = "in" | "out" | "reset";
 export type AnyAction = ShortcutAction | "zoomIn" | "zoomOut" | "zoomReset";
 
@@ -19,6 +20,9 @@ export const ACTIONS: { id: AnyAction; label: string; def: string }[] = [
   { id: "toggleSidebar", label: "Toggle sidebar", def: `${base}+b` },
   { id: "toggleSplit", label: "Toggle split view", def: `${base}+backslash` },
   { id: "settings", label: "Settings", def: `${base}+comma` },
+  ...([1, 2, 3, 4, 5, 6, 7, 8, 9] as const).map((n) => ({
+    id: `goto${n}` as AnyAction, label: `Go to terminal ${n}`, def: `alt+${n}`,
+  })),
 ];
 
 const MODS = ["ctrl", "alt", "shift", "meta"] as const;

@@ -183,15 +183,16 @@ export function attach(id: string, el: HTMLElement): () => void {
     loadRenderer(e.term);
     e.opened = true;
   }
-  let raf = 0;
+  // Trailing debounce: split panes animate their width, and refitting xterm every frame makes that stutter.
+  let timer = 0;
   const ro = new ResizeObserver(() => {
-    cancelAnimationFrame(raf);
-    raf = requestAnimationFrame(() => doFit(e));
+    clearTimeout(timer);
+    timer = window.setTimeout(() => doFit(e), 60);
   });
   ro.observe(el);
   doFit(e);
   return () => {
-    cancelAnimationFrame(raf);
+    clearTimeout(timer);
     ro.disconnect();
   };
 }
@@ -233,6 +234,8 @@ export const findNext = (id: string, q: string, caseSensitive: boolean, incremen
   q ? (entries.get(id)?.search.findNext(q, { caseSensitive, incremental, decorations: searchDecorations }) ?? false) : false;
 export const findPrevious = (id: string, q: string, caseSensitive: boolean) =>
   q ? (entries.get(id)?.search.findPrevious(q, { caseSensitive, decorations: searchDecorations }) ?? false) : false;
+export const onSearchResults = (id: string, cb: (index: number, count: number) => void) =>
+  entries.get(id)?.search.onDidChangeResults((r) => cb(r.resultIndex, r.resultCount));
 export const clearSearch = (id: string) => entries.get(id)?.search.clearDecorations();
 export const focus = (id: string) => entries.get(id)?.term.focus();
 

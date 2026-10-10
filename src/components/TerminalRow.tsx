@@ -1,18 +1,19 @@
 import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
-import { useStore } from "../store";
+import { useStore, flatOrder } from "../store";
 import { InlineEdit } from "./InlineEdit";
+import { useDropHint } from "./RowList";
 import "../layout.css";
 
 export function TerminalRow({ id }: { id: string }) {
   const t = useStore((s) => s.terminals[id]);
   const active = useStore((s) => s.activeId === id);
   const activity = useStore((s) => s.activity[id]);
-  const splitOn = useStore((s) => s.splitOn);
-  const inSplit = useStore((s) => s.splitIds.includes(id));
+  const num = useStore((s) => flatOrder(s).indexOf(id) + 1);
   const { setActive, renameTerminal, togglePin, closeTerminal } = useStore.getState();
+  const dropMode = useDropHint((h) => (h.id === id ? h.mode : null));
   const [editing, setEditing] = useState(false);
-  const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id });
+  const { setNodeRef, attributes, listeners, transform, isDragging } = useSortable({ id });
   if (!t) return null;
 
   return (
@@ -20,10 +21,10 @@ export function TerminalRow({ id }: { id: string }) {
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      className={`row term-row${active ? " active" : ""}${t.exited ? " exited" : ""}`}
+      className={`row term-row${active ? " active" : ""}${t.exited ? " exited" : ""}${dropMode ? ` drop-${dropMode}` : ""}`}
       style={{
-        transform: transform ? `translate3d(${transform.x}px,${transform.y}px,0)` : undefined,
-        transition,
+        // Only the dragged row follows the pointer; the others stay put and a drop indicator shows the target.
+        transform: isDragging && transform ? `translate3d(${transform.x}px,${transform.y}px,0)` : undefined,
         opacity: isDragging ? 0.5 : 1,
       }}
       onClick={(e) => {
@@ -32,6 +33,7 @@ export function TerminalRow({ id }: { id: string }) {
       }}
       onDoubleClick={() => setEditing(true)}
     >
+      {num >= 1 && num <= 9 && <span className="term-num">{num}</span>}
       {editing ? (
         <InlineEdit
           value={t.name}
@@ -47,19 +49,6 @@ export function TerminalRow({ id }: { id: string }) {
         </span>
       )}
       {activity && activity !== "idle" && <span className={`activity-dot ${activity}`} title="New output" />}
-      {splitOn && (
-        <button
-          className={`icon split-btn${inSplit ? " on" : ""}`}
-          title={inSplit ? "Remove from split" : "Add to split"}
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            useStore.getState().toggleSplitMember(id);
-          }}
-        >
-          ▥
-        </button>
-      )}
       <button
         className={`icon pin${t.pinned ? " on" : ""}`}
         title={t.pinned ? "Unpin (will be discarded on exit)" : "Pin (restore on restart)"}

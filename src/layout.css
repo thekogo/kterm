@@ -1,15 +1,35 @@
 /* Split view, activity dots, auto-hide sidebar. Colors use the theme variables with fallbacks. */
-.term { visibility: hidden; }
-.term.shown, .term.active { visibility: visible; }
-.term.split { right: auto; box-sizing: border-box; border-left: 1px solid var(--border, #262932); border-top: 2px solid transparent; }
+.term { visibility: hidden; overflow: hidden; opacity: 0; transition: left .18s ease, width .18s ease, opacity .18s ease, visibility 0s .18s; }
+.term.shown, .term.active { transition: left .18s ease, width .18s ease, opacity .18s ease; }
+@media (prefers-reduced-motion: reduce) { .term, .term.shown, .term.active { transition: none; } }
+.term.shown, .term.active { visibility: visible; opacity: 1; }
+.term.shown { right: auto; }
+.term.split { box-sizing: border-box; border-left: 1px solid var(--border, #262932); border-top: 2px solid transparent; }
 .term.split.first { border-left: 0; }
 .term.split.active { border-top-color: var(--accent, #8fa4ff); }
 
 .activity-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--accent, #8fa4ff); margin-left: 6px; }
 .activity-dot.running { background: #e2b04a; }
-.icon.split-btn.on { color: var(--accent, #8fa4ff); }
 
 .sidebar-zone { position: fixed; top: 0; bottom: 0; left: 0; width: 6px; z-index: 19; }
 .sidebar-host.autohide { position: fixed; top: 0; bottom: 0; left: 0; z-index: 20; display: flex; transform: translateX(-100%); transition: transform .18s ease, box-shadow .18s ease; }
 .sidebar-host.autohide.open { transform: translateX(0); box-shadow: 8px 0 24px rgba(0,0,0,.35); }
 .sidebar-host { display: flex; }
+
+/* Sidebar: split panes shown side by side in one row */
+.split-row { display: flex; gap: 2px; padding: 3px; margin-bottom: 2px; border-radius: 10px; background: var(--bg-raised, #1c1f27); }
+.split-cell { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 2px; padding: 5px 6px; border-radius: 7px; cursor: default; font-size: 12px; }
+.split-cell:hover { background: var(--bg-active, #262932); }
+.split-cell.active { background: var(--bg-active, #262932); color: var(--text-strong, #fff); box-shadow: inset 0 0 0 1px var(--accent, #8fa4ff); }
+.split-cell.exited .label { opacity: .5; text-decoration: line-through; }
+.split-cell .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.split-cell:not(:hover) .icon { visibility: hidden; }
+.split-row.over { box-shadow: 0 0 0 2px var(--accent, #8fa4ff); }
+
+/* Drag feedback: a bar = reorder before/after this row, a filled outline = merge into a split. */
+.row.drop-before, .row.drop-after, .group.drop-before, .group.drop-after { position: relative; }
+.row.drop-before::before, .row.drop-after::after, .group.drop-before::before, .group.drop-after::after { content: ""; position: absolute; left: 6px; right: 6px; height: 2px; border-radius: 1px; background: var(--accent, #8fa4ff); pointer-events: none; }
+.row.drop-before::before, .group.drop-before::before { top: -2px; }
+.row.drop-after::after, .group.drop-after::after { bottom: -2px; }
+.row.drop-merge { background: color-mix(in srgb, var(--accent, #8fa4ff) 18%, transparent); box-shadow: inset 0 0 0 2px var(--accent, #8fa4ff); }
+.row.drop-merge::after { content: "⊞ Merge"; flex: none; font-size: 10px; color: var(--accent, #8fa4ff); }

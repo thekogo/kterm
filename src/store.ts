@@ -36,6 +36,10 @@ type State = {
 
   toggleSplit: () => void;
   toggleSplitMember: (id: string) => void;
+  /** Show `a` and `b` side by side (joining the current split if `b` is already in it). */
+  mergeSplit: (a: string, b: string) => void;
+  /** Move split pane `a` to the position of `b`. */
+  reorderSplit: (a: string, b: string) => void;
   onOutput: (id: string) => void;
   toggleSidebarMode: () => void;
   init: (layout: ipc.Layout | null) => void;
@@ -61,7 +65,7 @@ type State = {
 
 const uid = () => crypto.randomUUID();
 
-function flatOrder(s: Pick<State, "items" | "groups">): string[] {
+export function flatOrder(s: Pick<State, "items" | "groups">): string[] {
   return s.items.flatMap((it) => (it.kind === "terminal" ? [it.id] : (s.groups[it.id]?.terminalIds ?? [])));
 }
 
@@ -69,7 +73,8 @@ function flatOrder(s: Pick<State, "items" | "groups">): string[] {
 export function visiblePanes(s: Pick<State, "splitOn" | "splitIds" | "activeId">): string[] {
   if (!s.activeId) return [];
   if (!s.splitOn) return [s.activeId];
-  return s.splitIds.includes(s.activeId) ? s.splitIds : [s.activeId, ...s.splitIds].slice(0, MAX_SPLIT);
+  // A terminal outside the split is shown alone; clicking a member brings the split back.
+  return s.splitIds.includes(s.activeId) ? s.splitIds : [s.activeId];
 }
 
 export const useStore = create<State>((set, get) => {
@@ -228,10 +233,35 @@ export const useStore = create<State>((set, get) => {
       const s = get();
       if (!s.terminals[id]) return;
       if (s.splitIds.includes(id)) {
-        if (id !== s.activeId || s.splitIds.length > 1) set({ splitIds: s.splitIds.filter((x) => x !== id) });
-      } else if (s.splitIds.length < MAX_SPLIT) {
-        set({ splitIds: [...s.splitIds, id], splitOn: true });
+        const rest = s.splitIds.filter((x) => x !== id);
+        if (!rest.length) return;
+        // Removing the focused pane hands focus to a remaining one so the split stays on screen.
+        set({ splitIds: rest, activeId: id === s.activeId ? rest[0] : s.activeId });
+      } else {
+        const base = visiblePanes(s);
+        if (base.length < MAX_SPLIT) set({ splitIds: [...base, id], splitOn: true });
       }
+    },
+
+    mergeSplit: (a, b) => {
+      const s = get();
+      if (!s.terminals[a] || !s.terminals[b] || a === b) return;
+      // Dropping onto a member of the visible split joins it; dropping onto anything else starts a fresh pair.
+      const vis = s.splitOn ? visiblePanes(s) : [];
+      const base = vis.includes(b) ? vis : [];
+      const ids = [...new Set([...base, b, a])].filter((x) => s.terminals[x]).slice(0, MAX_SPLIT);
+      if (!ids.includes(a)) return;
+      set({ splitOn: true, splitIds: ids });
+    },
+
+    reorderSplit: (a, b) => {
+      const s = get();
+      const ids = (s.splitOn ? s.splitIds : visiblePanes(s)).slice();
+      const from = ids.indexOf(a);
+      const to = ids.indexOf(b);
+      if (from < 0 || to < 0 || from === to) return;
+      ids.splice(to, 0, ids.splice(from, 1)[0]);
+      set({ splitIds: ids });
     },
 
     onOutput: (id) => {
