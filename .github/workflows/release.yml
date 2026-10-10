@@ -12,7 +12,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-22.04
+          - os: windows-latest
+          - os: macos-latest
+            target: aarch64-apple-darwin
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -33,6 +37,8 @@ jobs:
           cache: pnpm
 
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -53,3 +59,4 @@ jobs:
           releaseName: kterm ${{ github.ref_name }}
           releaseBody: Unsigned build. See the assets below for your platform.
           releaseDraft: true
+          args: ${{ matrix.target && format('--target {0}', matrix.target) }}

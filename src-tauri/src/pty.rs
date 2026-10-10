@@ -86,6 +86,8 @@ pub fn terminal_create(
         cfg!(windows),
         std::env::var("PROMPT").ok().as_deref(),
     );
+    let mut launch = launch;
+    let wsl_cwd = shells::apply_wsl(&mut launch, cwd.as_deref(), std::env::var("WSLENV").ok().as_deref());
     let mut cmd = CommandBuilder::new(&launch.program);
     cmd.args(&launch.args);
     for (k, v) in &launch.env {
@@ -94,6 +96,7 @@ pub fn terminal_create(
     cmd.env("TERM", "xterm-256color");
     cmd.env("COLORTERM", "truecolor");
     let dir = cwd
+        .filter(|_| !wsl_cwd)
         .filter(|c| std::path::Path::new(c).is_dir())
         .map(std::path::PathBuf::from)
         .or_else(dirs::home_dir);

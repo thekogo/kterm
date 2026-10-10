@@ -26,6 +26,7 @@ pub enum Kind {
     Fish,
     PowerShell,
     Cmd,
+    Wsl,
     Other,
 }
 
@@ -85,6 +86,7 @@ pub fn kind_of(program: &str) -> Kind {
         "fish" => Kind::Fish,
         "powershell" | "pwsh" => Kind::PowerShell,
         "cmd" => Kind::Cmd,
+        "wsl" => Kind::Wsl,
         _ => Kind::Other,
     }
 }
@@ -219,6 +221,33 @@ pub fn plan(
         _ => {}
     }
     l
+}
+
+/// True for a path that only makes sense inside Linux (what a WSL shell reports and expects).
+pub fn is_linux_path(p: &str) -> bool {
+    p.starts_with('/') || p == "~" || p.starts_with("~/")
+}
+
+/// Adapts a `wsl.exe` launch: a Linux `cwd` is passed with `--cd` (a Windows cwd would be mapped to
+/// `/mnt/c/...`), and bash is asked to report its Linux cwd through OSC 7 via an imported
+/// `PROMPT_COMMAND`. Returns true when `cwd` was consumed and must not be set on the Windows side.
+pub fn apply_wsl(l: &mut Launch, cwd: Option<&str>, wslenv: Option<&str>) -> bool {
+    if kind_of(&l.program) != Kind::Wsl {
+        return false;
+    }
+    l.env.push((
+        "PROMPT_COMMAND".into(),
+        r#"printf '\033]7;file://%s%s\007' "$HOSTNAME" "${PWD// /%20}""#.into(),
+    ));
+    let prev = wslenv.filter(|w| !w.is_empty()).map(|w| format!("{w}:")).unwrap_or_default();
+    l.env.push(("WSLENV".into(), format!("{prev}PROMPT_COMMAND/u")));
+    match cwd {
+        Some(c) if is_linux_path(c) && !l.args.iter().any(|a| a == "--cd") => {
+            l.args.splice(0..0, ["--cd".to_string(), c.to_string()]);
+            true
+        }
+        _ => false,
+    }
 }
 
 // --------------------------------------------------------------- discovery
@@ -360,7 +389,20 @@ mod tests {
         assert_eq!(kind_of("pwsh.exe"), Kind::PowerShell);
         assert_eq!(kind_of("CMD.exe"), Kind::Cmd);
         assert_eq!(kind_of("/usr/bin/fish"), Kind::Fish);
-        assert_eq!(kind_of("wsl.exe"), Kind::Other);
+        assert_eq!(kind_of("wsl.exe"), Kind::Wsl);
+    }
+
+    #[test]
+    fn wsl_linux_cwd_uses_cd() {
+        let mut l = plan(&parse_spec_with("wsl.exe -d Ubuntu", |_| false), None, None, true, None);
+        assert!(apply_wsl(&mut l, Some("/home/me/proj"), Some("A/p")));
+        assert_eq!(l.args, ["--cd", "/home/me/proj", "-d", "Ubuntu"]);
+        assert!(l.env.contains(&("WSLENV".into(), "A/p:PROMPT_COMMAND/u".into())));
+        let mut l = plan(&parse_spec_with("wsl.exe", |_| false), None, None, true, None);
+        assert!(!apply_wsl(&mut l, Some("C:/Users/me"), None));
+        assert!(l.args.is_empty());
+        let mut l = plan(&parse_spec_with("/bin/bash", |_| false), None, None, false, None);
+        assert!(!apply_wsl(&mut l, Some("/tmp"), None));
     }
 
     #[test]
