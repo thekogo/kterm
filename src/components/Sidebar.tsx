@@ -117,19 +117,13 @@ function onDragEnd({ active, over, activatorEvent, delta }: DragEndEvent) {
 
 export function Sidebar() {
   const items = useStore((s) => s.items);
-  const { addTerminal, addGroup, setSwitcher } = useStore.getState();
-  const switcherHint = useHint("switcher");
+  const { addTerminal, addGroup } = useStore.getState();
   const newHint = useHint("new");
   const settingsHint = useHint("settings");
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   return (
     <aside className="sidebar">
-      <div className="sidebar-head">
-        <button className="switch" onClick={() => setSwitcher(true)}>
-          Search terminals <kbd>{switcherHint}</kbd>
-        </button>
-      </div>
       <div className="sidebar-list">
         <DndContext sensors={sensors} collisionDetection={collision} modifiers={[verticalOnly]} onDragMove={onDragMove} onDragEnd={onDragEnd} onDragCancel={clearHint}>
           <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
